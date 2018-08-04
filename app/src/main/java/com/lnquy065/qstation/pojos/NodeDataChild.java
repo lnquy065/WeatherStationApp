@@ -1,6 +1,7 @@
 package com.lnquy065.qstation.pojos;
 
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -27,6 +28,21 @@ public class NodeDataChild {
     private double vUv;
     private double vDust;
     private String nodeID;
+    private MarkerOptions markerOptions;
+
+    public static int LEVEL_CO2_LV0 = 0;
+    public static int LEVEL_CO2_LV1 = 1;
+    public static int LEVEL_CO2_LV2 = 2;
+    public static int LEVEL_CO2_LV3 = 3;
+
+    public static int LEVEL_DUST_LV0 = 0;
+    public static int LEVEL_DUST_LV1 = 1;
+
+    public static int LEVEL_UV_LV0 = 0;
+    public static int LEVEL_UV_LV1 = 1;
+    public static int LEVEL_UV_LV2 = 2;
+    public static int LEVEL_UV_LV3 = 3;
+
 
     public NodeDataChild(){};
 
@@ -93,7 +109,7 @@ public class NodeDataChild {
 
 
     public String getTimeString() {
-        Date date = new Date( timeStamp * 1000);
+        Date date = new Date( timeStamp);
         DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
         return "("+dateFormat.format(date)+")";
     }
@@ -103,5 +119,19 @@ public class NodeDataChild {
         if (valueType == GraphActivity.GRAPH_TYPE_DUST) return vDust;
         if (valueType == GraphActivity.GRAPH_TYPE_UV) return vUv;
         return 0;
+    }
+
+    public int getCo2DangerousLevel() {
+        if ( vCo2 <= 1000) return LEVEL_CO2_LV0;
+        if ( vCo2 <= 2000) return LEVEL_CO2_LV1;
+        if ( vCo2 <= 5000) return LEVEL_CO2_LV2;
+        return LEVEL_CO2_LV3;
+    }
+
+    public int getUVDangerousLevel() {
+        if (vUv <= 3) return LEVEL_UV_LV0;
+        if ( vUv <= 5) return LEVEL_UV_LV1;
+        if ( vUv <= 7 ) return LEVEL_UV_LV2;
+        return LEVEL_UV_LV3;
     }
 }

@@ -1,6 +1,6 @@
 package com.lnquy065.qstation;
 
-import com.lnquy065.qstation.pojos.NodeInfoChild;
+import com.lnquy065.qstation.pojos.NodeInfo;
 
 import java.util.ArrayList;
 
@@ -9,5 +9,6 @@ import java.util.ArrayList;
  */
 
 public class NodeStaticList {
-    public static ArrayList<NodeInfoChild> nodeList = new ArrayList<>();
+    public static ArrayList<NodeInfo> nodeList = new ArrayList<>();
+
 }

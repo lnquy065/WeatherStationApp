@@ -1,9 +1,6 @@
 package com.lnquy065.qstation.adapter;
 
-import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.media.Image;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.view.View;
@@ -15,16 +12,16 @@ import android.widget.TextView;
 import com.lnquy065.qstation.GraphActivity;
 import com.lnquy065.qstation.MainMapActivity;
 import com.lnquy065.qstation.R;
-import com.lnquy065.qstation.pojos.NodeInfoChild;
+import com.lnquy065.qstation.pojos.NodeInfo;
 
 import java.util.List;
 
-public class NodeInfoAdapter extends ArrayAdapter<NodeInfoChild> {
+public class NodeInfoAdapter extends ArrayAdapter<NodeInfo> {
     private GraphActivity context;
     private int resource;
-    private List<NodeInfoChild> objects;
+    private List<NodeInfo> objects;
 
-    public NodeInfoAdapter(@NonNull GraphActivity context, int resource, @NonNull List<NodeInfoChild> objects) {
+    public NodeInfoAdapter(@NonNull GraphActivity context, int resource, @NonNull List<NodeInfo> objects) {
         super(context, resource, objects);
         this.context = context;
         this.resource = resource;
@@ -41,7 +38,7 @@ public class NodeInfoAdapter extends ArrayAdapter<NodeInfoChild> {
         ImageButton btnViewChart = row.findViewById(R.id.btnViewChart);
         ImageButton btnViewOnMap = row.findViewById(R.id.btnViewOnMap);
 
-        final NodeInfoChild node = objects.get(position);
+        final NodeInfo node = objects.get(position);
 
         txtNodeId.setText(node.getNodeID());
         txtNodeName.setText(node.getName());
@@ -49,7 +46,9 @@ public class NodeInfoAdapter extends ArrayAdapter<NodeInfoChild> {
         btnViewChart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                context.refeshGraph(GraphActivity.GRAPH_TYPE_CO2, node.getNodeID());
+                context.setGraphNodeId(node.getNodeID());
+                context.setGraphMode(GraphActivity.GRAPH_TYPE_CO2);
+//                context.refreshGraph(GraphActivity.GRAPH_TYPE_CO2, node.getNodeID());
             }
         });
 

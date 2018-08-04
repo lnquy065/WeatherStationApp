@@ -19,7 +19,7 @@ import com.google.firebase.database.Query;
 import com.lnquy065.qstation.events.ChildEvent;
 import com.lnquy065.qstation.events.SingleValueEvent;
 import com.lnquy065.qstation.pojos.NodeDataChild;
-import com.lnquy065.qstation.pojos.NodeInfoChild;
+import com.lnquy065.qstation.pojos.NodeInfo;
 
 import java.util.Map;
 
@@ -70,7 +70,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 String nodeID = dataSnapshot.getKey();
                 double lat = Double.valueOf(t.get("lat").toString());
                 double lng = Double.valueOf(t.get("lng").toString());
-                NodeStaticList.nodeList.add(new NodeInfoChild(nodeID, lat, lng));
+                NodeStaticList.nodeList.add(new NodeInfo(nodeID, lat, lng));
 
                 Query maxTimeStamp = nodeDataRef.child(nodeID).orderByChild("timeStamp").limitToLast(1);
                 maxTimeStamp.addListenerForSingleValueEvent(new SingleValueEvent() {

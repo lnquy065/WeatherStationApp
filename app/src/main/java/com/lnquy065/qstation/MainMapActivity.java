@@ -7,19 +7,14 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.VibrationEffect;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
-import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -42,19 +37,22 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 import com.lnquy065.qstation.events.ChildEvent;
 import com.lnquy065.qstation.events.SingleValueEvent;
 import com.lnquy065.qstation.googlemaps.CustomInfoWindow;
 import com.lnquy065.qstation.pojos.NodeDataChild;
-import com.lnquy065.qstation.pojos.NodeInfoChild;
+import com.lnquy065.qstation.pojos.NodeInfo;
 
 import java.io.IOException;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -75,13 +73,15 @@ public class MainMapActivity extends AppCompatActivity
     private ImageButton ibtnLayer, ibtnStatistic;
     private boolean mMapNormalMode = true;
 
-    private NodeInfoChild revNode = null;
+    private NodeInfo revNode = null;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_map2);
 
-        revNode = (NodeInfoChild) getIntent().getSerializableExtra("Node");
+        revNode = (NodeInfo) getIntent().getSerializableExtra("Node");
 
         requirePermission();
         initGoogleMap();
@@ -94,18 +94,52 @@ public class MainMapActivity extends AppCompatActivity
     private void initTracking() {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            Log.d("GPSchange", "Provider Done");
             if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5 * 1000, 0, new LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {
-                    Log.d("GPSchange", "Ok");
                     if (!swTracking.isChecked()) return;
+
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
 
+                    for (final NodeInfo node: NodeStaticList.nodeList) {
+                        if (!node.isInbound(location)) continue;
+
+                        Query query = nodeDataRef.child(node.getNodeID()).orderByChild("timeStamp").limitToLast(1);
+                        query.addChildEventListener(new ChildEvent() {
+                            @Override
+                            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                                NodeDataChild nodeDataChild = dataSnapshot.getValue(NodeDataChild.class);
+
+                            }
+                        });
+
+                        query.addListenerForSingleValueEvent(new SingleValueEvent() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                if (dataSnapshot.getChildrenCount()!=0) {
+                                    NodeDataChild nodeData;
+                                    for (DataSnapshot i: dataSnapshot.getChildren()) {
+                                        nodeData = i.getValue(NodeDataChild.class);
+                                        int co2Level = nodeData.getCo2DangerousLevel();
+                                        int uvLevel = nodeData.getUVDangerousLevel();
+                                        String notifyMessage = "You are in ";
+                                        Log.d("NodeDistanceLvl", co2Level + " (" + nodeData.getvCo2() + ")");
+                                        if (co2Level > 1) notifyMessage += " high Co2 intensity";
+                                        if (uvLevel > 1) notifyMessage += " high UV intensity";
+                                        if (co2Level > 1 || uvLevel > 1) {
+                                            Toast.makeText(MainMapActivity.this, notifyMessage, Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+
+                                }
+                            }
+                        });
+
+                    }
                 }
 
                 @Override
@@ -320,33 +354,53 @@ public class MainMapActivity extends AppCompatActivity
                 final double lat = Double.valueOf(t.get("lat").toString());
                 final double lng = Double.valueOf(t.get("lng").toString());
                 final String name = t.get("name").toString();
-                NodeStaticList.nodeList.add(new NodeInfoChild(nodeID, lat, lng, name));
+                final NodeInfo node = new NodeInfo(nodeID, lat, lng, name);
+                NodeStaticList.nodeList.add(node);
+                Log.d("FIREBASE_MARKER", dataSnapshot.getKey());
 
-                Query maxTimeStamp = nodeDataRef.child(nodeID).orderByChild("timeStamp").limitToLast(1);
-                maxTimeStamp.addListenerForSingleValueEvent(new SingleValueEvent() {
+                database.getReference("nodeData").child(node.getNodeID()).addChildEventListener(new ChildEvent() {
                     @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        if (dataSnapshot.getChildrenCount()!=0) {
-                            NodeDataChild nodeDataChild;
-
-                            for (DataSnapshot i: dataSnapshot.getChildren()) {
-                                nodeDataChild = i.getValue(NodeDataChild.class);
-
-                                MarkerOptions markerOptions = new MarkerOptions()
-                                        .position(new LatLng(lat, lng))
-                                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.qnode))
-                                        .anchor(1.0f, 0.5f);
-                                nodeDataChild.setNodeID(nodeID);
-                                mMap.addMarker( markerOptions ).setTag(nodeDataChild);
-
-                            }
-
-                            //=> Da lay duoc max timestamp cua tung node;
-                        }
-
+                    public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                        NodeDataChild nodeDataChild = dataSnapshot.getValue(NodeDataChild.class);
+                        MarkerOptions markerOptions = new MarkerOptions()
+                                .position(node.getLatLng())
+                                .icon(BitmapDescriptorFactory.fromResource(R.drawable.qnode))
+                                .anchor(1.0f, 0.5f);
+                        nodeDataChild.setNodeID(node.getNodeID());
+                        Marker mk = mMap.addMarker( node.createMarkerOption() );
+                        mk.setTag(nodeDataChild);
+                        node.setMarker(mk);
+                        Log.d("FIREBASE_MARKER", node.getNodeID()+": "+ dataSnapshot.getKey());
                     }
                 });
 
+//                Query maxTimeStamp = nodeDataRef.child(nodeID).orderByChild("timeStamp").limitToLast(1);
+//
+//                maxTimeStamp.addListenerForSingleValueEvent(new SingleValueEvent() {
+//                    @Override
+//                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                        if (dataSnapshot.getChildrenCount()!=0) {
+//                            NodeDataChild nodeDataChild;
+//
+//                            for (DataSnapshot i: dataSnapshot.getChildren()) {
+//                                nodeDataChild = i.getValue(NodeDataChild.class);
+//
+//                                MarkerOptions markerOptions = new MarkerOptions()
+//                                        .position(new LatLng(lat, lng))
+//                                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.qnode))
+//                                        .anchor(1.0f, 0.5f);
+//                                nodeDataChild.setNodeID(nodeID);
+//                                mMap.addMarker( markerOptions ).setTag(nodeDataChild);
+//
+//
+//                            }
+//
+//                            //=> Da lay duoc max timestamp cua tung node;
+//                        }
+//
+//                    }
+//                });
+//
             }
         });
 
