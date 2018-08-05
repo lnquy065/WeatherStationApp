@@ -36,8 +36,10 @@ public class GraphActivity extends AppCompatActivity {
     public static final int GRAPH_TYPE_CO2 = 0;
     public static final int GRAPH_TYPE_DUST = 1;
     public static final int GRAPH_TYPE_UV = 2;
+    public static long minTime = 0;
+
     public String currentNode;
-    public int currentGraph = 0;
+    public  int currentGraph = 0;
 
     private FirebaseDatabase database;
     private DatabaseReference nodeDataRef;
@@ -53,7 +55,7 @@ public class GraphActivity extends AppCompatActivity {
     private RadioButton radUv;
     private RadioButton radDust;
     private TextView txtNodeId;
-    private int maxRecord = 24;
+    private int maxRecord = 10;
     private Timer timer;
 
     @Override
@@ -71,16 +73,18 @@ public class GraphActivity extends AppCompatActivity {
         radCo2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) refreshGraph(GRAPH_TYPE_CO2, currentNode);
-                currentGraph = GRAPH_TYPE_CO2;
+                if (isChecked) {
+                    refreshGraph(GRAPH_TYPE_CO2, currentNode);
+                    currentGraph = GRAPH_TYPE_CO2;
+                }
             }
         });
 
         radUv.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) refreshGraph(GRAPH_TYPE_UV, currentNode);
-                currentGraph = GRAPH_TYPE_UV;
+                if (isChecked) {refreshGraph(GRAPH_TYPE_UV, currentNode);
+                currentGraph = GRAPH_TYPE_UV;}
             }
         });
 
@@ -88,8 +92,8 @@ public class GraphActivity extends AppCompatActivity {
         radDust.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) refreshGraph(GRAPH_TYPE_DUST, currentNode);
-                currentGraph = GRAPH_TYPE_DUST;
+                if (isChecked) { refreshGraph(GRAPH_TYPE_DUST, currentNode);
+                currentGraph = GRAPH_TYPE_DUST;}
             }
         });
 
@@ -101,6 +105,7 @@ public class GraphActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        Log.d("REFRESHGRAPH", "Timer: " + currentGraph);
                         refreshGraph(currentGraph, currentNode);
                     }
                 });
@@ -120,6 +125,8 @@ public class GraphActivity extends AppCompatActivity {
         xAxis.setDrawGridLines(true);
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawAxisLine(true);
+        xAxis.setLabelCount(maxRecord, true);
+        xAxis.setLabelRotationAngle(60);
 
         YAxis yAxis = lineChart.getAxis(YAxis.AxisDependency.LEFT);
         yAxis.setZeroLineWidth(2f);
@@ -148,6 +155,7 @@ public class GraphActivity extends AppCompatActivity {
     public void setGraphMode(int mode) {
         if (mode==GRAPH_TYPE_CO2) {
             radCo2.setChecked(true);
+            currentGraph = GRAPH_TYPE_CO2;
             if (radCo2.isChecked()) refreshGraph(GRAPH_TYPE_CO2, currentNode);
         }
         if (mode == GRAPH_TYPE_DUST) {
@@ -164,7 +172,7 @@ public class GraphActivity extends AppCompatActivity {
 
 
     public void refreshGraph(final int valueType, String nodeID) {
-        Log.d("REFRESHGRAPH", nodeID);
+        Log.d("REFRESHGRAPH", valueType +"");
         txtNodeId.setText(nodeID);
         Query maxTimeStamp = nodeDataRef.child(nodeID).orderByChild("timeStamp").limitToLast(maxRecord);
         maxTimeStamp.addListenerForSingleValueEvent(new SingleValueEvent() {
@@ -179,10 +187,13 @@ public class GraphActivity extends AppCompatActivity {
                     dataSet.setLineWidth(2f);
                     dataSet.setColor( Color.BLUE );
                     dataSet.setCircleColor( Color.BLUE );
+                    minTime = 0;
                     for (DataSnapshot i: dataSnapshot.getChildren()) {
+
                         nodeDataChild = i.getValue(NodeDataChild.class);
-                        dataSet.addEntry(new Entry( (float) nodeDataChild.getTimeStamp(),
-                                (float) nodeDataChild.getVal(valueType) ));
+                        if (minTime == 0) minTime = nodeDataChild.getTimeStamp();
+                        dataSet.addEntry(new Entry( (int) (nodeDataChild.getTimeStamp() - minTime), (float) nodeDataChild.getVal(valueType) ));
+                        Log.d("FIREBASE_DATA", nodeDataChild.getTimeStamp()  + ": "+(nodeDataChild.getTimeStamp() - minTime) +"" );
                     }
                     LineData lineData = new LineData(dataSet);
                     lineChart.setData(lineData);

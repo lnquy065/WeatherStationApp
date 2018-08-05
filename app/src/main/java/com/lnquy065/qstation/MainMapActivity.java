@@ -1,5 +1,6 @@
 package com.lnquy065.qstation;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
@@ -7,10 +8,15 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Parcel;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -74,6 +80,10 @@ public class MainMapActivity extends AppCompatActivity
     private boolean mMapNormalMode = true;
 
     private NodeInfo revNode = null;
+    private Vibrator vibrator;
+
+    private NotificationCompat.Builder nobuilder;
+    private MediaPlayer mp;
 
 
     @Override
@@ -101,10 +111,11 @@ public class MainMapActivity extends AppCompatActivity
                 @Override
                 public void onLocationChanged(Location location) {
                     if (!swTracking.isChecked()) return;
-
+                    //Kiem tra vuot qua nguong cho phep
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
 
+                    //Duyet danh sach cac node gan do
                     for (final NodeInfo node: NodeStaticList.nodeList) {
                         if (!node.isInbound(location)) continue;
 
@@ -126,11 +137,14 @@ public class MainMapActivity extends AppCompatActivity
                                         nodeData = i.getValue(NodeDataChild.class);
                                         int co2Level = nodeData.getCo2DangerousLevel();
                                         int uvLevel = nodeData.getUVDangerousLevel();
-                                        String notifyMessage = "You are in ";
+                                        String notifyMessage = "";
+
                                         Log.d("NodeDistanceLvl", co2Level + " (" + nodeData.getvCo2() + ")");
-                                        if (co2Level > 1) notifyMessage += " high Co2 intensity";
-                                        if (uvLevel > 1) notifyMessage += " high UV intensity";
-                                        if (co2Level > 1 || uvLevel > 1) {
+                                        if (co2Level >= 1) notifyMessage += " High Co2 intensity";
+                                        if (uvLevel > 1) notifyMessage += " High UV intensity";
+                                        if (co2Level >= 1 || uvLevel > 1) {
+                                            vibrator.vibrate(2000);
+                                            mp.start();
                                             Toast.makeText(MainMapActivity.this, notifyMessage, Toast.LENGTH_SHORT).show();
                                         }
                                     }
@@ -149,25 +163,30 @@ public class MainMapActivity extends AppCompatActivity
 
                 @Override
                 public void onProviderEnabled(String s) {
-                    Log.d("GPSchange", "Provider Enable");
+
                 }
 
                 @Override
                 public void onProviderDisabled(String s) {
-                    Log.d("GPSchange", "Provider Failed");
+
                 }
             });
 
         } else {
-            Log.d("GPSchange", "Provider Failed");
+
         }
     }
+
+
+
 
     private void initControls() {
         seekBarMapZoom = this.findViewById(R.id.seekBarMapZoom);
         swTracking = this.findViewById(R.id.swTracking);
         ibtnLayer = this.findViewById(R.id.ibtnLayer);
         ibtnStatistic = this.findViewById(R.id.ibtnStatistic);
+        vibrator =  (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        mp = MediaPlayer.create(this, R.raw.beep_beep_beep);
     }
 
     private void initEvents() {
@@ -191,7 +210,10 @@ public class MainMapActivity extends AppCompatActivity
         swTracking.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                if (swTracking.isChecked()) initTracking();
+                if (swTracking.isChecked()) {
+                    Toast.makeText(MainMapActivity.this, "GPS is preparing...", Toast.LENGTH_SHORT).show();
+                    initTracking();
+                }
             }
         });
 
